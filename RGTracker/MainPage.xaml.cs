@@ -22,8 +22,10 @@ namespace RGTracker
         private String ServerAddress;
         private String Password;
 
+        private String StatusText = "";
         private int errors = 0;
         private int successful = 0;
+        private int discarded = 0;
 
         const int MAX_LOCATION_ACCURACY = 15;
 
@@ -125,6 +127,11 @@ namespace RGTracker
 
             if (args.Position.Coordinate.Accuracy <= MAX_LOCATION_ACCURACY)
                 SendToServer(args.Position.Coordinate);
+            else
+            {
+                discarded++;
+                UpdateStatusDisplay();
+            }
         }
 
         private void SendToServer(Geocoordinate coordinate)
@@ -149,27 +156,28 @@ namespace RGTracker
             if (e.Error == null)
             {
                 successful++;
-
-                if (!App.RunningInBackground) {
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        LastResponseText.Text = e.Result;
-                        SendToServerText.Text = "Successful updates: " + successful;
-                    });
-                }
+                StatusText = e.Result;
             }
             else
             {
                 errors++;
-
-                if (!App.RunningInBackground) {
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        LastResponseText.Text = e.Error.Message;
-                        SendToServerFailedText.Text = "Errors: " + errors;
-                    });
-                } 
+                StatusText = e.Error.Message;
             }
+
+            UpdateStatusDisplay();
+        }
+
+        private void UpdateStatusDisplay()
+        {
+            if (!App.RunningInBackground)
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    LastResponseText.Text = StatusText;
+                    SendToServerFailedText.Text = "Errors: " + errors + " Discarded: " + discarded;
+                    SendToServerText.Text = "Successful updates: " + successful;
+                });
+            } 
         }
     }
 }
