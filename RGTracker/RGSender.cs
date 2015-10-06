@@ -11,7 +11,8 @@ public class RGSender
 {
 
     const int MAX_LOCATION_ACCURACY = 25;
-    const int SEND_INTERVAL_SECONDS = 7;
+    const int SEND_INTERVAL_SECONDS = 20;
+    const int SEND_TIMEOUT_SECONDS = 7;
 
     private int runnerId;
     private String runnerName;
@@ -26,6 +27,10 @@ public class RGSender
     private int sendOffset = 0;
 
     private DispatcherTimer sendTimer;
+    private DispatcherTimer sendTimeout;
+
+    private WebClient webClient;
+
     private List<Geoposition> coordinateList = new List<Geoposition>();
 
     public RGSender(RGTracker.MainPage mainPage)
@@ -37,10 +42,20 @@ public class RGSender
 
         this.mainPage = mainPage;
 
+        // Initialize send timer
         sendTimer = new DispatcherTimer();
         sendTimer.Tick += new EventHandler(DoSend);
         sendTimer.Interval = new TimeSpan(0, 0, SEND_INTERVAL_SECONDS);
         sendTimer.Start();
+
+        // Initialize send timeout timer. This checks if send takes too long and cancels request.
+        sendTimeout = new DispatcherTimer();
+        sendTimeout.Tick += SendTimeout;
+        sendTimeout.Interval = new TimeSpan(0, 0, SEND_TIMEOUT_SECONDS);
+
+        // We send points using WebClient
+        webClient = new WebClient();
+        webClient.DownloadStringCompleted += new DownloadStringCompletedEventHandler(RequestCompleted);
     }
 
     public void Stop()
@@ -48,6 +63,10 @@ public class RGSender
         sendTimer.Stop();
     }
 
+    /// <summary>
+    /// Adds new Geoposition to be sent to server.
+    /// </summary>
+    /// <param name="geoposition"></param>
     public void AddPoint(Geoposition geoposition)
     {
         String lat = geoposition.Coordinate.Latitude.ToString("0.000000");
@@ -118,16 +137,31 @@ public class RGSender
 
     public void SendToServer(String URL)
     {
-        WebClient webClient = new WebClient();
-        webClient.DownloadStringCompleted += new DownloadStringCompletedEventHandler(RequestCompleted);
+        if (webClient.IsBusy) // Only one send per time is allowed
+            return;
+
         webClient.DownloadStringAsync(new System.Uri(URL));
+        sendTimeout.Start();
+    }
+
+    private void SendTimeout(object sender, EventArgs e)
+    {
+        if (webClient.IsBusy) // Send takes too long, try again with next send
+            webClient.CancelAsync();
+
+        sendTimeout.Stop();
     }
 
     private void RequestCompleted(object sender, DownloadStringCompletedEventArgs e)
     {
         String statusText;
-
-        if (e.Error == null)
+        
+        if (e.Cancelled)
+        {
+            errors++;
+            statusText = "Send timeout";
+        }
+        else if (e.Error == null)
         {
             coordinateList.RemoveRange(0, sendOffset);
             sendOffset = 0;
@@ -142,6 +176,4 @@ public class RGSender
 
         mainPage.UpdateStatusDisplay(successful, errors, discarded, statusText);
     }
-
-    
 }
