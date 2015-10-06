@@ -1,7 +1,9 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.IO.IsolatedStorage;
 using System.Net;
+using System.Windows.Threading;
 using Windows.Devices.Geolocation;
 
 
@@ -9,6 +11,7 @@ public class RGSender
 {
 
     const int MAX_LOCATION_ACCURACY = 25;
+    const int SEND_INTERVAL_SECONDS = 7;
 
     private int runnerId;
     private String runnerName;
@@ -20,6 +23,11 @@ public class RGSender
     private int errors = 0;
     private int discarded = 0;
 
+    private int sendOffset = 0;
+
+    private DispatcherTimer sendTimer;
+    private List<Geoposition> coordinateList = new List<Geoposition>();
+
     public RGSender(RGTracker.MainPage mainPage)
     {
         this.runnerName = (String)IsolatedStorageSettings.ApplicationSettings["RunnerName"];
@@ -28,6 +36,16 @@ public class RGSender
         this.password = (String)IsolatedStorageSettings.ApplicationSettings["Password"];
 
         this.mainPage = mainPage;
+
+        sendTimer = new DispatcherTimer();
+        sendTimer.Tick += new EventHandler(DoSend);
+        sendTimer.Interval = new TimeSpan(0, 0, SEND_INTERVAL_SECONDS);
+        sendTimer.Start();
+    }
+
+    public void Stop()
+    {
+        sendTimer.Stop();
     }
 
     public void AddPoint(Geoposition geoposition)
@@ -45,22 +63,61 @@ public class RGSender
         else
         {
             mainPage.UpdateCoordinateField(lat + " " + lon + " " + accuracy);
-            SendToServer(geoposition.Coordinate); // TODO: Remove
+            coordinateList.Add(geoposition);
         }
     }
 
-    public void SendToServer(Geocoordinate coordinate)
+    private void DoSend(object sender, EventArgs e)
     {
-        DateTimeOffset time = coordinate.Timestamp;
-        Int32 timestamp = (Int32)time.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
+        if (coordinateList.Count == 0)
+            return;
 
-        Int32 lat = Convert.ToInt32(Math.Floor(coordinate.Latitude * 1000000));
-        Int32 lon = Convert.ToInt32(Math.Floor(coordinate.Longitude * 1000000));
+        String URL = GetURLWithBasicParameters();
+        Geoposition[] coordinates = coordinateList.ToArray();
 
-        String AdditionalData = "act=s&n=" + runnerName + "&c=" + runnerId + "&p=" + password;
-        String RGData = timestamp + "," + lat + "," + lon;
-        String URL = serverAddress + "?" + AdditionalData + "&d=" + RGData;
+        int timestampFirst = GetPointTimestamp(coordinates[0]);
+        int latFirst = GetLat(coordinates[0]);
+        int lonFirst = GetLon(coordinates[0]);
 
+        String firstPointData = timestampFirst + "," + latFirst + "," + lonFirst + ",10x"; // Satellites "fixed" to 10
+        URL += firstPointData;
+
+        for (int i = 1; i < coordinates.Length; i++)
+        {
+            int timestamp = GetPointTimestamp(coordinates[i]) - timestampFirst;
+            int lat = GetLat(coordinates[i]) - latFirst;
+            int lon = GetLon(coordinates[i]) - lonFirst;
+
+            URL += timestamp + "," + lat + "," + lon + ",10x";
+        }
+
+        sendOffset = coordinates.Length;
+
+        SendToServer(URL);
+    }
+
+    private String GetURLWithBasicParameters()
+    {
+        return serverAddress + "?act=s&n=" + runnerName + "&c=" + runnerId + "&p=" + password + "&d=";
+    }
+
+    private int GetPointTimestamp(Geoposition geoposition)
+    {
+        return (int)geoposition.Coordinate.Timestamp.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
+    }
+
+    private int GetLat(Geoposition geoposition)
+    {
+        return Convert.ToInt32(Math.Floor(geoposition.Coordinate.Latitude * 1000000)); ;
+    }
+
+    private int GetLon(Geoposition geoposition)
+    {
+        return Convert.ToInt32(Math.Floor(geoposition.Coordinate.Longitude * 1000000));
+    }
+
+    public void SendToServer(String URL)
+    {
         WebClient webClient = new WebClient();
         webClient.DownloadStringCompleted += new DownloadStringCompletedEventHandler(RequestCompleted);
         webClient.DownloadStringAsync(new System.Uri(URL));
@@ -72,6 +129,8 @@ public class RGSender
 
         if (e.Error == null)
         {
+            coordinateList.RemoveRange(0, sendOffset);
+            sendOffset = 0;
             successful++;
             statusText = e.Result;
         }

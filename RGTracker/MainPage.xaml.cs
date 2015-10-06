@@ -91,6 +91,9 @@ namespace RGTracker
                 StopTrackingButton.IsEnabled = false;
                 StartTrackingButton.IsEnabled = true;
             });
+
+            RGSender.Stop();
+            RGSender = null;
         }
 
         void geolocator_PositionChanged(Geolocator sender, PositionChangedEventArgs args)
