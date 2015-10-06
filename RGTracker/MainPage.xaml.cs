@@ -17,21 +17,11 @@ namespace RGTracker
     {
 
         private Boolean IsTracking = false;
-        private int RunnerId;
-        private String RunnerName;
-        private String ServerAddress;
-        private String Password;
-
-        private String StatusText = "";
-        private int errors = 0;
-        private int successful = 0;
-        private int discarded = 0;
-
-        const int MAX_LOCATION_ACCURACY = 15;
-
+        private RGSender RGSender;
+        
         // Constructor
         public MainPage()
-        {   
+        {
             InitializeComponent();
             LoadSavedSettings();
         }
@@ -54,7 +44,6 @@ namespace RGTracker
 
         private void StartTrackingClick(object sender, RoutedEventArgs e)
         {
-            InitializeGeolocator();
             IsTracking = true;
 
             Dispatcher.BeginInvoke(() =>
@@ -65,18 +54,16 @@ namespace RGTracker
                 if (RunnerIDInput.Text == "")
                     RunnerIDInput.Text = "-1";
 
-                RunnerId = int.Parse(RunnerIDInput.Text);
-                ServerAddress = ServerAddressInput.Text;
-                RunnerName = NameInput.Text;
-                Password = PasswordInput.Text;
-
                 // Save values
-                IsolatedStorageSettings.ApplicationSettings["RunnerID"] = RunnerId;
-                IsolatedStorageSettings.ApplicationSettings["ServerAddress"] = ServerAddress;
-                IsolatedStorageSettings.ApplicationSettings["RunnerName"] = RunnerName;
-                IsolatedStorageSettings.ApplicationSettings["Password"] = Password;
+                IsolatedStorageSettings.ApplicationSettings["RunnerID"] = int.Parse(RunnerIDInput.Text);
+                IsolatedStorageSettings.ApplicationSettings["ServerAddress"] = ServerAddressInput.Text;
+                IsolatedStorageSettings.ApplicationSettings["RunnerName"] = NameInput.Text;
+                IsolatedStorageSettings.ApplicationSettings["Password"] = PasswordInput.Text;
 
                 IsolatedStorageSettings.ApplicationSettings.Save();
+
+                RGSender = new RGSender(this);
+                InitializeGeolocator();
             });
         }
 
@@ -110,70 +97,26 @@ namespace RGTracker
         {
             if (!IsTracking)
                 return;
+            else
+                RGSender.AddPoint(args.Position);
+        }
 
+        public void UpdateCoordinateField(String text)
+        {
             if (!App.RunningInBackground)
-            {
-                Dispatcher.BeginInvoke(() => {
-                    String lat = args.Position.Coordinate.Latitude.ToString("0.000000");
-                    String lon = args.Position.Coordinate.Longitude.ToString("0.000000");
-                    String accuracy = args.Position.Coordinate.Accuracy.ToString("0") + " m";
-
-                    if (args.Position.Coordinate.Accuracy > MAX_LOCATION_ACCURACY)
-                        TrackingInfoTextBlock.Text = "Accuracy too low " + accuracy + " position data discarded.";
-                    else
-                        TrackingInfoTextBlock.Text = lat + " " + lon + " " + accuracy;
+                Dispatcher.BeginInvoke(() =>
+                {
+                    TrackingInfoTextBlock.Text = text;
                 });
-            }
-
-            if (args.Position.Coordinate.Accuracy <= MAX_LOCATION_ACCURACY)
-                SendToServer(args.Position.Coordinate);
-            else
-            {
-                discarded++;
-                UpdateStatusDisplay();
-            }
         }
 
-        private void SendToServer(Geocoordinate coordinate)
-        {
-            DateTimeOffset time = coordinate.Timestamp;
-            Int32 timestamp = (Int32)time.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
-
-            Int32 lat = Convert.ToInt32(Math.Floor(coordinate.Latitude * 1000000));
-            Int32 lon = Convert.ToInt32(Math.Floor(coordinate.Longitude * 1000000));
-
-            String AdditionalData = "act=s&n=" + RunnerName + "&c=" + RunnerId + "&p=" + Password;
-            String RGData = timestamp + "," + lat + "," + lon;
-            String URL = ServerAddress + "?" + AdditionalData + "&d=" + RGData;
-
-            WebClient webClient = new WebClient();
-            webClient.DownloadStringCompleted += new DownloadStringCompletedEventHandler(RequestCompleted);
-            webClient.DownloadStringAsync(new System.Uri(URL));
-        }
-
-        private void RequestCompleted(object sender, DownloadStringCompletedEventArgs e)
-        {
-            if (e.Error == null)
-            {
-                successful++;
-                StatusText = e.Result;
-            }
-            else
-            {
-                errors++;
-                StatusText = e.Error.Message;
-            }
-
-            UpdateStatusDisplay();
-        }
-
-        private void UpdateStatusDisplay()
+        public void UpdateStatusDisplay(int successful, int errors, int discarded, String status)
         {
             if (!App.RunningInBackground)
             {
                 Dispatcher.BeginInvoke(() =>
                 {
-                    LastResponseText.Text = StatusText;
+                    LastResponseText.Text = status;
                     SendToServerFailedText.Text = "Errors: " + errors + " Discarded: " + discarded;
                     SendToServerText.Text = "Successful updates: " + successful;
                 });
