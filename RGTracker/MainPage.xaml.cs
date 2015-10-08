@@ -18,10 +18,13 @@ namespace RGTracker
     public partial class MainPage : PhoneApplicationPage
     {
 
-        private Boolean IsTracking = false;
+        private Boolean isTracking = false;
         private RGSender RGSender;
         private AssemblyName appName = new AssemblyName(Assembly.GetExecutingAssembly().FullName);
         private DispatcherTimer updater = new DispatcherTimer();
+        
+        private Geoposition lastKnownPosition;
+        private int positionLoggingCounter;
 
         // Constructor
         public MainPage()
@@ -56,7 +59,8 @@ namespace RGTracker
 
         private void StartTrackingClick(object sender, RoutedEventArgs e)
         {
-            IsTracking = true;
+            isTracking = true;
+            positionLoggingCounter = 0;
 
             Dispatcher.BeginInvoke(() =>
             {
@@ -97,7 +101,7 @@ namespace RGTracker
 
         private void StopTracking()
         {
-            IsTracking = false;
+            isTracking = false;
 
             Dispatcher.BeginInvoke(() => {
                 StopTrackingButton.IsEnabled = false;
@@ -110,10 +114,10 @@ namespace RGTracker
 
         void geolocator_PositionChanged(Geolocator sender, PositionChangedEventArgs args)
         {
-            if (!IsTracking)
+            if (!isTracking)
                 return;
             else
-                RGSender.AddPoint(args.Position);
+                lastKnownPosition = args.Position;
         }
 
         public void UpdateCoordinateField(String text)
@@ -142,6 +146,12 @@ namespace RGTracker
         {
             if (!App.RunningInBackground && RGSender != null)
                 RGSender.UpdateStatus();
+            
+            if (isTracking && lastKnownPosition != null && positionLoggingCounter++ == 3)
+                RGSender.AddPoint(lastKnownPosition);
+
+            if (positionLoggingCounter > 3)
+                positionLoggingCounter = 0;
         }
     }
 }

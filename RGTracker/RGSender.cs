@@ -10,7 +10,7 @@ using Windows.Devices.Geolocation;
 public class RGSender
 {
 
-    const int MAX_LOCATION_ACCURACY = 25;
+    const int MAX_LOCATION_ACCURACY = 40;
     const int SEND_INTERVAL_SECONDS = 20;
     const int SEND_TIMEOUT_SECONDS = 7;
 
