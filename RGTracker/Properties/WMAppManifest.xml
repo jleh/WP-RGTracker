@@ -1,12 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Deployment xmlns="http://schemas.microsoft.com/windowsphone/2012/deployment" AppPlatformVersion="8.0">
   <DefaultLanguage xmlns="" code="en-US" />
-  <App xmlns="" ProductID="{a56ac45b-9759-4540-9074-e0e4f2a1e7ad}" Title="RGTracker" RuntimeType="Silverlight" Version="1.0.0.0" Genre="apps.normal" Author="RGTracker author" Description="Sample description" Publisher="RGTracker" PublisherID="{90ba78e9-5dc1-4edd-b9dd-4bba328af3a0}">
+  <App xmlns="" ProductID="{a56ac45b-9759-4540-9074-e0e4f2a1e7ad}" Title="RGTracker" RuntimeType="Silverlight" Version="1.2.0.0" Genre="apps.normal" Author="Karttalehtinen" Description="RouteGadget Live GPS tracking client." Publisher="Karttalehtinen" PublisherID="{90ba78e9-5dc1-4edd-b9dd-4bba328af3a0}">
     <IconPath IsRelative="true" IsResource="false">Assets\ApplicationIcon.png</IconPath>
     <Capabilities>
       <Capability Name="ID_CAP_NETWORKING" />
-      <Capability Name="ID_CAP_MEDIALIB_AUDIO" />
-      <Capability Name="ID_CAP_MEDIALIB_PLAYBACK" />
       <Capability Name="ID_CAP_SENSORS" />
       <Capability Name="ID_CAP_WEBBROWSERCOMPONENT" />
       <Capability Name="ID_CAP_LOCATION" />
@@ -14,7 +12,7 @@
     <Tasks>
       <DefaultTask Name="_default" NavigationPage="MainPage.xaml">
         <BackgroundExecution>
-          <ExecutionType Name="LocationTracking"/>
+          <ExecutionType Name="LocationTracking" />
         </BackgroundExecution>
       </DefaultTask>
     </Tasks>
