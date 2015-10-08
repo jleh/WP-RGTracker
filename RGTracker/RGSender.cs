@@ -117,7 +117,12 @@ public class RGSender
 
     private String GetURLWithBasicParameters()
     {
-        return serverAddress + "?act=s&n=" + runnerName + "&c=" + runnerId + "&p=" + password + "&d=";
+        String parameters = "act=s&n=" + runnerName + "&c=" + runnerId + "&p=" + password + "&d=";
+        
+        if (serverAddress.Contains("?"))
+            return serverAddress + "&" + parameters;
+        else
+            return serverAddress + "?" + parameters;
     }
 
     private int GetPointTimestamp(Geoposition geoposition)
