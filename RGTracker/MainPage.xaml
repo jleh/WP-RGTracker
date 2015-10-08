@@ -23,7 +23,7 @@
 
         <!--TitlePanel contains the name of the application and page title-->
         <StackPanel x:Name="TitlePanel" Grid.Row="0" Margin="12,17,0,28">
-            <TextBlock Text="RGTracker" Style="{StaticResource PhoneTextNormalStyle}" Margin="12,0"/>
+            <TextBlock x:Name="AppTitleText" Text="RGTracker" Style="{StaticResource PhoneTextNormalStyle}" Margin="12,0"/>
         </StackPanel>
 
         <!--ContentPanel - place additional content here-->

@@ -10,6 +10,8 @@ using Microsoft.Phone.Shell;
 using RGTracker.Resources;
 using Windows.Devices.Geolocation;
 using System.IO.IsolatedStorage;
+using System.Reflection;
+using System.Windows.Threading;
 
 namespace RGTracker
 {
@@ -18,12 +20,22 @@ namespace RGTracker
 
         private Boolean IsTracking = false;
         private RGSender RGSender;
-        
+        private AssemblyName appName = new AssemblyName(Assembly.GetExecutingAssembly().FullName);
+        private DispatcherTimer updater = new DispatcherTimer();
+
         // Constructor
         public MainPage()
         {
             InitializeComponent();
             LoadSavedSettings();
+
+            Dispatcher.BeginInvoke(() => {
+                AppTitleText.Text = appName.Name + " " + appName.Version.ToString();
+            });
+
+            updater.Interval = new TimeSpan(0, 0, 1);
+            updater.Tick += UpdateHandler;
+            updater.Start();
         }
 
         private void LoadSavedSettings()
@@ -124,6 +136,12 @@ namespace RGTracker
                     SendToServerText.Text = "Successful updates: " + successful;
                 });
             } 
+        }
+
+        private void UpdateHandler(object sender, EventArgs e)
+        {
+            if (!App.RunningInBackground && RGSender != null)
+                RGSender.UpdateStatus();
         }
     }
 }

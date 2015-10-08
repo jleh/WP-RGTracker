@@ -176,4 +176,9 @@ public class RGSender
 
         mainPage.UpdateStatusDisplay(successful, errors, discarded, statusText);
     }
+
+    public void UpdateStatus()
+    {
+        mainPage.UpdateStatusDisplay(successful, errors, discarded, "");
+    }
 }
